@@ -76,16 +76,38 @@ function App() {
   }, [selectedImage, conversionOptions]);
 
   const handleDownload = useCallback(async (modelUrl) => {
+    if (!modelUrl) {
+      setError('No model URL available to download.');
+      return;
+    }
+    setError(null);
+
     try {
-      // Create a download link for the 3D model
+      // Fetch the model data from the cross-origin URL.
+      // The backend provides a temporary URL to the file on Hugging Face's CDN.
+      const response = await fetch(modelUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch model data. Status: ${response.status}`);
+      }
+      const blob = await response.blob();
+
+      // Create a local URL for the blob.
+      const localUrl = window.URL.createObjectURL(blob);
+
+      // Create a link element, set its properties, and click it to trigger the download.
       const link = document.createElement('a');
-      link.href = modelUrl;
+      link.href = localUrl;
       link.download = `jewelry-3d-model-${Date.now()}.glb`;
       document.body.appendChild(link);
       link.click();
+      
+      // Clean up by removing the link and revoking the local URL.
       document.body.removeChild(link);
+      window.URL.revokeObjectURL(localUrl);
+
     } catch (err) {
-      setError('Failed to download the 3D model');
+      console.error('Download failed:', err);
+      setError('Failed to download the 3D model. This may be due to browser security restrictions.');
     }
   }, []);
 
